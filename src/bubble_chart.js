@@ -10,8 +10,8 @@
  */
 function bubbleChart() {
   // Constants for sizing
-  var width = 940;
-  var height = 600;
+  var width = 1200;
+  var height = 1000;
 
   // tooltip for mouseover functionality
   var tooltip = floatingTooltip('gates_tooltip', 240);
@@ -20,13 +20,14 @@ function bubbleChart() {
   // on which view mode is selected.
   var center = { x: width / 2, y: height / 2 };
 
+  var coordinates = [];
   var yearCenters = {
     2008: { x: width / 3, y: height / 2 },
     2009: { x: width / 2, y: height / 2 },
     2010: { x: 2 * width / 3, y: height / 2 }
   };
 
-  // X locations of the year titles.
+    // X locations of the year titles.
   var yearsTitleX = {
     2008: 160,
     2009: width / 2,
@@ -35,7 +36,7 @@ function bubbleChart() {
 
   // Used when setting up force and
   // moving around nodes
-  var damper = 0.102;
+  var damper = 0.10;
 
   // These will be set in create_nodes and create_vis
   var svg = null;
@@ -52,7 +53,7 @@ function bubbleChart() {
   // Dividing by 8 scales down the charge to be
   // appropriate for the visualization dimensions.
   function charge(d) {
-    return -Math.pow(d.radius, 2.0) / 8;
+    return -Math.pow(d.radius, 2.0)/10;
   }
 
   // Here we create a force layout and
@@ -68,14 +69,15 @@ function bubbleChart() {
 
 
   // Nice looking colors - no reason to buck the trend
-  var fillColor = d3.scale.ordinal()
-    .domain(['low', 'medium', 'high'])
-    .range(['#d84b2a', '#beccae', '#7aa25c']);
+  var fillColor = d3.scale.category20c();
+  // var fillColor = d3.scale.ordinal()
+  //   .domain(['low', 'medium', 'high'])
+  //   .range(['#d84b2a', '#beccae', '#7aa25c']);
 
   // Sizes bubbles based on their area instead of raw radius
   var radiusScale = d3.scale.pow()
     .exponent(0.5)
-    .range([2, 85]);
+    .range([2, 20]);
 
   /*
    * This data manipulation function takes the raw data from
@@ -93,20 +95,66 @@ function bubbleChart() {
     // Use map() to convert raw data into node data.
     // Checkout http://learnjsdata.com/ for more on
     // working with data.
+
+    var industries = [];
+    var group_count = 0;
+    for (var el in rawData)
+    {
+      rawData[el].id = el;
+      if (industries.indexOf(rawData[el].Industries) == -1)
+      {
+        industries.push(rawData[el].Industries);
+        rawData[el].group = group_count;
+        group_count++;
+      }
+      else
+      {
+        rawData[el].id = el;
+        rawData[el].group = industries.indexOf(rawData[el].Industries);
+      }
+    }
+    // group_count = 9;
+    var root_cnt = Math.floor(Math.pow(group_count , 0.5));
+    var first_cnt = ((root_cnt * (root_cnt + 1) - group_count) != 0)?Math.floor((root_cnt * (root_cnt + 2) - group_count)/2):0;
+    var last_cnt = ((root_cnt * (root_cnt + 1) - group_count) != 0)?(group_count - root_cnt * (root_cnt - 1 ) - first_cnt):0;
+
+
+    for (el in industries)
+    {
+      if (first_cnt !=0 && el < first_cnt)
+      {
+        ddx = 900/(first_cnt+1) * (el*1+1);
+        ddy =  600 / (root_cnt+2) * 1;
+      }
+      else if (last_cnt !=0 && el > group_count - last_cnt - 1)
+      {
+        ddx = 900/(last_cnt+1) * (last_cnt - (group_count - el*1 - 1));
+        ddy =  600 - 600 / (root_cnt+2) * 1;
+      }
+      else
+      {
+        ddx = 900/(root_cnt+1) * ((el-first_cnt) % root_cnt + 1);
+        ddy =  600 / (root_cnt+2) * (Math.floor((el-first_cnt) / root_cnt) + 2);
+      }
+      ddx = 150 + Math.floor(ddx)
+      ddy = 200 + Math.floor(ddy)
+      var tmp = {};
+      tmp.x = ddx; tmp.y = ddy;
+      coordinates.push(tmp);
+    }
+
     var myNodes = rawData.map(function (d) {
       return {
         id: d.id,
-        radius: radiusScale(+d.total_amount),
-        value: d.total_amount,
-        name: d.grant_title,
-        org: d.organization,
+        radius: radiusScale(parseInt(d.Revenue*1)),
+        value: parseInt(d.Revenue),
+        name: d.Target,
+        org: d.Industries,
         group: d.group,
-        year: d.start_year,
-        x: Math.random() * 900,
-        y: Math.random() * 800
+        x: Math.random() * 1200,
+        y: Math.random() * 1000
       };
     });
-
     // sort them to prevent occlusion of smaller nodes.
     myNodes.sort(function (a, b) { return b.value - a.value; });
 
@@ -130,7 +178,7 @@ function bubbleChart() {
     // Use the max total_amount in the data as the max in the scale's domain
     // note we have to ensure the total_amount is a number by converting it
     // with `+`.
-    var maxAmount = d3.max(rawData, function (d) { return +d.total_amount; });
+    var maxAmount = d3.max(rawData, function (d) { return parseInt(d.Revenue); });
     radiusScale.domain([0, maxAmount]);
 
     nodes = createNodes(rawData);
@@ -147,7 +195,6 @@ function bubbleChart() {
     // Bind nodes data to what will become DOM elements to represent them.
     bubbles = svg.selectAll('.bubble')
       .data(nodes, function (d) { return d.id; });
-
     // Create new circle elements each with class `bubble`.
     // There will be one circle.bubble for each object in the nodes array.
     // Initially, their radius (r attribute) will be 0.
@@ -205,7 +252,7 @@ function bubbleChart() {
   function moveToCenter(alpha) {
     return function (d) {
       d.x = d.x + (center.x - d.x) * damper * alpha;
-      d.y = d.y + (center.y - d.y) * damper * alpha;
+      d.y = d.y + (center.y - d.y - 100) * damper * alpha;
     };
   }
 
@@ -216,7 +263,7 @@ function bubbleChart() {
    * yearCenter of their data's year.
    */
   function splitBubbles() {
-    showYears();
+    // showYears();
 
     force.on('tick', function (e) {
       bubbles.each(moveToYears(e.alpha))
@@ -243,7 +290,7 @@ function bubbleChart() {
    */
   function moveToYears(alpha) {
     return function (d) {
-      var target = yearCenters[d.year];
+      var target = coordinates[d.group];
       d.x = d.x + (target.x - d.x) * damper * alpha * 1.1;
       d.y = d.y + (target.y - d.y) * damper * alpha * 1.1;
     };
@@ -283,14 +330,14 @@ function bubbleChart() {
     // change outline to indicate hover state.
     d3.select(this).attr('stroke', 'black');
 
-    var content = '<span class="name">Title: </span><span class="value">' +
+    var content = '<span class="name">Target: </span><span class="value">' +
                   d.name +
                   '</span><br/>' +
-                  '<span class="name">Amount: </span><span class="value">$' +
-                  addCommas(d.value) +
+                  '<span class="name">Industry: </span><span class="value">' +
+                  d.org +
                   '</span><br/>' +
-                  '<span class="name">Year: </span><span class="value">' +
-                  d.year +
+                  '<span class="name">Revenue: </span><span class="value">' +
+                  addCommas(d.value) +
                   '</span>';
     tooltip.showTooltip(content, d3.event);
   }
@@ -314,7 +361,7 @@ function bubbleChart() {
    * displayName is expected to be a string and either 'year' or 'all'.
    */
   chart.toggleDisplay = function (displayName) {
-    if (displayName === 'year') {
+    if (displayName === 'industry') {
       splitBubbles();
     } else {
       groupBubbles();
@@ -374,20 +421,22 @@ function setupButtons() {
  * and add commas to it to improve presentation.
  */
 function addCommas(nStr) {
-  nStr += '';
-  var x = nStr.split('.');
-  var x1 = x[0];
-  var x2 = x.length > 1 ? '.' + x[1] : '';
-  var rgx = /(\d+)(\d{3})/;
-  while (rgx.test(x1)) {
-    x1 = x1.replace(rgx, '$1' + ',' + '$2');
-  }
+  // nStr += '';
+  // var x = nStr.split('.');
+  // var x1 = x[0];
+  // var x2 = x.length > 1 ? '.' + x[1] : '';
+  // var rgx = /(\d+)(\d{3})/;
+  // while (rgx.test(x1)) {
+  //   x1 = x1.replace(rgx, '$1' + ',' + '$2');
+  // }
 
-  return x1 + x2;
+  // return x1 + x2;
+  return nStr + " $/Mon"
 }
 
 // Load the data.
-d3.csv('data/gates_money.csv', display);
+// d3.csv('data/gates_money.csv', display);
+d3.csv('data/revenue_data.csv', display);
 
 // setup the buttons.
 setupButtons();
