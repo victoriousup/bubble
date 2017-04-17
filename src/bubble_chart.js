@@ -11,7 +11,7 @@
 function bubbleChart() {
   // Constants for sizing
   var width = 1200;
-  var height = 1000;
+  var height = 900;
 
   // tooltip for mouseover functionality
   var tooltip = floatingTooltip('gates_tooltip', 240);
@@ -21,19 +21,7 @@ function bubbleChart() {
   var center = { x: width / 2, y: height / 2 };
 
   var coordinates = [];
-  var yearCenters = {
-    2008: { x: width / 3, y: height / 2 },
-    2009: { x: width / 2, y: height / 2 },
-    2010: { x: 2 * width / 3, y: height / 2 }
-  };
-
-    // X locations of the year titles.
-  var yearsTitleX = {
-    2008: 160,
-    2009: width / 2,
-    2010: width - 160
-  };
-
+  
   // Used when setting up force and
   // moving around nodes
   var damper = 0.10;
@@ -91,16 +79,18 @@ function bubbleChart() {
    * This function returns the new node array, with a node in that
    * array for each element in the rawData input.
    */
+  var industries = [];
   function createNodes(rawData) {
     // Use map() to convert raw data into node data.
     // Checkout http://learnjsdata.com/ for more on
     // working with data.
 
-    var industries = [];
+
     var group_count = 0;
     for (var el in rawData)
     {
       rawData[el].id = el;
+      rawData[el].Industries = rawData[el].Industries.replace(/\s*$/,'');
       if (industries.indexOf(rawData[el].Industries) == -1)
       {
         industries.push(rawData[el].Industries);
@@ -121,20 +111,21 @@ function bubbleChart() {
 
     for (el in industries)
     {
+      console.log(industries[el])
       if (first_cnt !=0 && el < first_cnt)
       {
         ddx = 900/(first_cnt+1) * (el*1+1);
-        ddy =  600 / (root_cnt+2) * 1;
+        ddy =  500 / (root_cnt+2) * 1;
       }
       else if (last_cnt !=0 && el > group_count - last_cnt - 1)
       {
         ddx = 900/(last_cnt+1) * (last_cnt - (group_count - el*1 - 1));
-        ddy =  600 - 600 / (root_cnt+2) * 1;
+        ddy =  500 - 500 / (root_cnt+2) * 1;
       }
       else
       {
         ddx = 900/(root_cnt+1) * ((el-first_cnt) % root_cnt + 1);
-        ddy =  600 / (root_cnt+2) * (Math.floor((el-first_cnt) / root_cnt) + 2);
+        ddy =  500 / (root_cnt+2) * (Math.floor((el-first_cnt) / root_cnt) + 2);
       }
       ddx = 150 + Math.floor(ddx)
       ddy = 200 + Math.floor(ddy)
@@ -213,6 +204,27 @@ function bubbleChart() {
       .duration(2000)
       .attr('r', function (d) { return d.radius; });
 
+    var diameter = 1200;
+    var legend = svg.selectAll(".legend")
+      .data(fillColor.domain())
+      .enter().append("g")
+      .attr("class", "legend")
+      .attr("transform", function (d, i) { return "translate(0," + i * 20 + ")"; });
+
+      legend.append("rect")
+                .attr("x", diameter - 18)
+                .attr("width", 18)
+                .attr("height", 18)
+                .style("fill", fillColor);
+
+      legend.append("text")
+                .attr("x", diameter - 24)
+                .attr("y", 9)
+                .attr("dy", ".35em")
+                .style("text-anchor", "end")
+                .text(function (d) {  return industries[d]; });
+
+
     // Set initial layout to single group.
     groupBubbles();
   };
@@ -252,7 +264,7 @@ function bubbleChart() {
   function moveToCenter(alpha) {
     return function (d) {
       d.x = d.x + (center.x - d.x) * damper * alpha;
-      d.y = d.y + (center.y - d.y - 100) * damper * alpha;
+      d.y = d.y + (center.y - d.y) * damper * alpha;
     };
   }
 
