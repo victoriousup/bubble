@@ -1,4 +1,9 @@
 
+  $("#lang_sw").on('change',function(){
+    lang_flag = $(this).is(":checked")?"cn":"en";
+    $("#all").html(translate("all",lang_flag))
+    $("#industry").html(translate("industry",lang_flag))
+  });
 
 /* bubbleChart creation function. Returns a function that will
  * instantiate a new bubble chart given a DOM element to display
@@ -91,6 +96,7 @@ function bubbleChart() {
     {
       rawData[el].id = el;
       rawData[el].Industries = rawData[el].Industries.replace(/\s*$/,'');
+      rawData[el].Industries =  rawData[el].Industries.toUpperCase();
       if (industries.indexOf(rawData[el].Industries) == -1)
       {
         industries.push(rawData[el].Industries);
@@ -104,31 +110,41 @@ function bubbleChart() {
       }
     }
     // group_count = 9;
-    var root_cnt = Math.floor(Math.pow(group_count , 0.5));
-    var first_cnt = ((root_cnt * (root_cnt + 1) - group_count) != 0)?Math.floor((root_cnt * (root_cnt + 2) - group_count)/2):0;
-    var last_cnt = ((root_cnt * (root_cnt + 1) - group_count) != 0)?(group_count - root_cnt * (root_cnt - 1 ) - first_cnt):0;
+    var root_cnt = 5 /*Math.floor(Math.pow(group_count , 0.5))*/;
+    var first_cnt = 4/*((root_cnt * (root_cnt + 1) - group_count) != 0)?Math.floor((group_count- root_cnt * root_cnt)/2):0*/;
+    // var last_cnt = ((root_cnt * (root_cnt + 1) - group_count) != 0)?(group_count - root_cnt * root_cnt - first_cnt):0;
 
-
+    // console.log(first_cnt + " " + last_cnt + " " + root_cnt )
     for (el in industries)
     {
-      console.log(industries[el])
+      // console.log(industries[el])
       if (first_cnt !=0 && el < first_cnt)
       {
         ddx = 900/(first_cnt+1) * (el*1+1);
         ddy =  500 / (root_cnt+2) * 1;
-      }
-      else if (last_cnt !=0 && el > group_count - last_cnt - 1)
-      {
-        ddx = 900/(last_cnt+1) * (last_cnt - (group_count - el*1 - 1));
-        ddy =  500 - 500 / (root_cnt+2) * 1;
       }
       else
       {
         ddx = 900/(root_cnt+1) * ((el-first_cnt) % root_cnt + 1);
         ddy =  500 / (root_cnt+2) * (Math.floor((el-first_cnt) / root_cnt) + 2);
       }
+      // if (first_cnt !=0 && el < first_cnt)
+      // {
+      //   ddx = 900/(first_cnt+1) * (el*1+1);
+      //   ddy =  500 / (root_cnt+2) * 1;
+      // }
+      // else if (last_cnt !=0 && el > group_count - last_cnt - 1)
+      // {
+      //   ddx = 900/(last_cnt+1) * (last_cnt - (group_count - el*1 - 1));
+      //   ddy =  500 - 500 / (root_cnt+2) * 1;
+      // }
+      // else
+      // {
+      //   ddx = 900/(root_cnt+1) * ((el-first_cnt) % root_cnt + 1);
+      //   ddy =  500 / (root_cnt+2) * (Math.floor((el-first_cnt) / root_cnt) + 2);
+      // }
       ddx = 150 + Math.floor(ddx)
-      ddy = 200 + Math.floor(ddy)
+      ddy = 250 + Math.floor(ddy)
       var tmp = {};
       tmp.x = ddx; tmp.y = ddy;
       coordinates.push(tmp);
@@ -341,14 +357,14 @@ function bubbleChart() {
   function showDetail(d) {
     // change outline to indicate hover state.
     d3.select(this).attr('stroke', 'black');
-
-    var content = '<span class="name">Target: </span><span class="value">' +
+    var lang = $("#lang_sw").is(":checked")?"cn":"en";
+    var content = '<span class="name">'+translate('Target', lang)+': </span><span class="value">' +
                   d.name +
                   '</span><br/>' +
-                  '<span class="name">Industry: </span><span class="value">' +
+                  '<span class="name">'+translate('Industries', lang)+': </span><span class="value">' +
                   d.org +
                   '</span><br/>' +
-                  '<span class="name">Revenue: </span><span class="value">' +
+                  '<span class="name">'+translate('Revenue', lang)+': </span><span class="value">' +
                   addCommas(d.value) +
                   '</span>';
     tooltip.showTooltip(content, d3.event);
@@ -452,3 +468,26 @@ d3.csv('data/revenue_data.csv', display);
 
 // setup the buttons.
 setupButtons();
+
+/* Translate Function */
+
+function translate(str, lang)
+{
+  var localstr  = []
+
+  localstr["cn"] = {
+    "target"    : "公司",
+    "industries": "产业",
+    "revenue"   : "营收",
+    "all"       : "所有的公司",
+    "industry"  : "公司按产业"
+  };
+  localstr["en"] = {
+    "target"    : "Target",
+    "industries": "Industry",
+    "revenue"   : "Revenue",
+    "all"       : "All Companies",
+    "industry"  : "Targets By Industries"
+  };
+  return localstr[lang.toLowerCase()][str.toLowerCase()];
+}
