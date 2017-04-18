@@ -1,9 +1,4 @@
 
-  $("#lang_sw").on('change',function(){
-    lang_flag = $(this).is(":checked")?"cn":"en";
-    $("#all").html(translate("all",lang_flag))
-    $("#industry").html(translate("industry",lang_flag))
-  });
 
 /* bubbleChart creation function. Returns a function that will
  * instantiate a new bubble chart given a DOM element to display
@@ -85,6 +80,36 @@ function bubbleChart() {
    * array for each element in the rawData input.
    */
   var industries = [];
+  var legend;
+
+  $("#lang_sw").on('change',function(){
+    lang_flag = $(this).is(":checked")?"cn":"en";
+    $("#all").html(translate("all",lang_flag))
+    $("#industry").html(translate("industry",lang_flag));
+    changeLegend(false)
+  });
+
+  function changeLegend(flg)
+  {
+    if (flg){
+      legend.append("rect")
+                .attr("x", width - 18)
+                .attr("width", 18)
+                .attr("height", 18)
+                .style("fill", fillColor);
+
+      legend.append("text")
+                .attr("x", width - 24)
+                .attr("y", 9)
+                .attr("dy", ".35em")
+                .style("text-anchor", "end")
+                .text(function (d) {  var lang = $("#lang_sw").is(":checked")?"cn":"en"; return translate(industries[d].toLowerCase(), lang); } );
+    } else {
+      legend.select("text")
+                .text(function (d) {  var lang = $("#lang_sw").is(":checked")?"cn":"en"; return translate(industries[d].toLowerCase(), lang); } );
+    }
+
+  }
   function createNodes(rawData) {
     // Use map() to convert raw data into node data.
     // Checkout http://learnjsdata.com/ for more on
@@ -217,28 +242,27 @@ function bubbleChart() {
     // Fancy transition to make bubbles appear, ending with the
     // correct radius
     bubbles.transition()
-      .duration(2000)
+      .duration(1500)
       .attr('r', function (d) { return d.radius; });
 
-    var diameter = 1200;
-    var legend = svg.selectAll(".legend")
+    legend = svg.selectAll(".legend")
       .data(fillColor.domain())
       .enter().append("g")
       .attr("class", "legend")
       .attr("transform", function (d, i) { return "translate(0," + i * 20 + ")"; });
+    changeLegend(true);
+      // legend.append("rect")
+      //           .attr("x", diameter - 18)
+      //           .attr("width", 18)
+      //           .attr("height", 18)
+      //           .style("fill", fillColor);
 
-      legend.append("rect")
-                .attr("x", diameter - 18)
-                .attr("width", 18)
-                .attr("height", 18)
-                .style("fill", fillColor);
-
-      legend.append("text")
-                .attr("x", diameter - 24)
-                .attr("y", 9)
-                .attr("dy", ".35em")
-                .style("text-anchor", "end")
-                .text(function (d) {  return industries[d]; });
+      // legend.append("text")
+      //           .attr("x", diameter - 24)
+      //           .attr("y", 9)
+      //           .attr("dy", ".35em")
+      //           .style("text-anchor", "end")
+      //           .text(function (d) {  var lang = $("#lang_sw").is(":checked")?"cn":"en"; return translate(industries[d].toLowerCase(), lang); });
 
 
     // Set initial layout to single group.
@@ -362,7 +386,7 @@ function bubbleChart() {
                   d.name +
                   '</span><br/>' +
                   '<span class="name">'+translate('Industries', lang)+': </span><span class="value">' +
-                  d.org +
+                  translate(d.org.toLowerCase(), lang) +
                   '</span><br/>' +
                   '<span class="name">'+translate('Revenue', lang)+': </span><span class="value">' +
                   addCommas(d.value) +
@@ -480,14 +504,43 @@ function translate(str, lang)
     "industries": "产业",
     "revenue"   : "营收",
     "all"       : "所有的公司",
-    "industry"  : "公司按产业"
+    "industry"  : "公司按产业",
+    "finance & business services" : "金融 & 商务服务",
+    "healthcare & biotech"  : "医疗保健 & 生物技术",
+    "consumer products & retail & e-commerce" : "消费品 & 零售 & 电子商务",
+    "agriculture & food"  : "农业 & 食品",
+    "industrials" : "工业",
+    "energy & infrastructure & construction"  : "能源 & 基础设施 & 建设",
+    "real estate & hospitality" : "房地产 & 酒店",
+    "aerospace & defense" : " 航空 & 国防",
+    "materials & chemicals"  : "材料 & 化学",
+    "entertainment"  : "招待",
+    "tmt" : "数字新媒体",
+    "transportation"  : "运输",
+    "education" : "教育",
+    "automotive"  : "自动化"
   };
   localstr["en"] = {
     "target"    : "Target",
     "industries": "Industry",
     "revenue"   : "Revenue",
     "all"       : "All Companies",
-    "industry"  : "Targets By Industries"
+    "industry"  : "Targets By Industries",
+    "finance & business services" : "Finance & Business Services",
+    "healthcare & biotech"  : "Healthcare & BioTech",
+    "consumer products & retail & e-commerce" : "Consumer Products & Retail & E-Commerce",
+    "agriculture & food"  : "Agriculture & Food",
+    "industrials" : "Industrials",
+    "energy & infrastructure & construction"  : "Energy & Infrastructure & Construction",
+    "real estate & hospitality" : "Real Estate & Hospitality",
+    "aerospace & defense" : "Aerospace & Defense",
+    "materials & chemicals"  : "Materials & Chemicals",
+    "entertainment"  : "Entertainment",
+    "tmt" : "TMT",
+    "transportation"  : "Transportation",
+    "education" : "Education",
+    "automotive"  : "Automotive"
   };
   return localstr[lang.toLowerCase()][str.toLowerCase()];
 }
+
