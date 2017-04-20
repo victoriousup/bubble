@@ -109,3 +109,6 @@ a, a:visited, a:active {
 .pull-left{
   float:left;
 }
+.industries{
+  font-weight: bold;
+}

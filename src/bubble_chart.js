@@ -20,8 +20,6 @@ function bubbleChart() {
   // on which view mode is selected.
   var center = { x: width / 2, y: height / 2 };
 
-  var coordinates = [];
-  
   // Used when setting up force and
   // moving around nodes
   var damper = 0.10;
@@ -80,13 +78,18 @@ function bubbleChart() {
    * array for each element in the rawData input.
    */
   var industries = [];
-  var legend;
+  var legend = legend || {};
+  var labels = labels || {};
+
 
   $("#lang_sw").on('change',function(){
     lang_flag = $(this).is(":checked")?"cn":"en";
     $("#all").html(translate("all",lang_flag))
     $("#industry").html(translate("industry",lang_flag));
-    changeLegend(false)
+    changeLegend(false);
+    labels.text(function(d){
+      return translate(industries[d], lang_flag);
+    });
   });
 
   function changeLegend(flg)
@@ -115,7 +118,6 @@ function bubbleChart() {
     // Checkout http://learnjsdata.com/ for more on
     // working with data.
 
-
     var group_count = 0;
     for (var el in rawData)
     {
@@ -134,47 +136,7 @@ function bubbleChart() {
         rawData[el].group = industries.indexOf(rawData[el].Industries);
       }
     }
-    // group_count = 9;
-    var root_cnt = 5 /*Math.floor(Math.pow(group_count , 0.5))*/;
-    var first_cnt = 4/*((root_cnt * (root_cnt + 1) - group_count) != 0)?Math.floor((group_count- root_cnt * root_cnt)/2):0*/;
-    // var last_cnt = ((root_cnt * (root_cnt + 1) - group_count) != 0)?(group_count - root_cnt * root_cnt - first_cnt):0;
-
-    // console.log(first_cnt + " " + last_cnt + " " + root_cnt )
-    for (el in industries)
-    {
-      // console.log(industries[el])
-      if (first_cnt !=0 && el < first_cnt)
-      {
-        ddx = 900/(first_cnt+1) * (el*1+1);
-        ddy =  500 / (root_cnt+2) * 1;
-      }
-      else
-      {
-        ddx = 900/(root_cnt+1) * ((el-first_cnt) % root_cnt + 1);
-        ddy =  500 / (root_cnt+2) * (Math.floor((el-first_cnt) / root_cnt) + 2);
-      }
-      // if (first_cnt !=0 && el < first_cnt)
-      // {
-      //   ddx = 900/(first_cnt+1) * (el*1+1);
-      //   ddy =  500 / (root_cnt+2) * 1;
-      // }
-      // else if (last_cnt !=0 && el > group_count - last_cnt - 1)
-      // {
-      //   ddx = 900/(last_cnt+1) * (last_cnt - (group_count - el*1 - 1));
-      //   ddy =  500 - 500 / (root_cnt+2) * 1;
-      // }
-      // else
-      // {
-      //   ddx = 900/(root_cnt+1) * ((el-first_cnt) % root_cnt + 1);
-      //   ddy =  500 / (root_cnt+2) * (Math.floor((el-first_cnt) / root_cnt) + 2);
-      // }
-      ddx = 150 + Math.floor(ddx)
-      ddy = 250 + Math.floor(ddy)
-      var tmp = {};
-      tmp.x = ddx; tmp.y = ddy;
-      coordinates.push(tmp);
-    }
-
+ 
     var myNodes = rawData.map(function (d) {
       return {
         id: d.id,
@@ -183,8 +145,8 @@ function bubbleChart() {
         name: d.Target,
         org: d.Industries,
         group: d.group,
-        x: Math.random() * 1200,
-        y: Math.random() * 1000
+        x: Math.random() * width,
+        y: Math.random() * height
       };
     });
     // sort them to prevent occlusion of smaller nodes.
@@ -242,8 +204,9 @@ function bubbleChart() {
     // Fancy transition to make bubbles appear, ending with the
     // correct radius
     bubbles.transition()
-      .duration(1500)
+      .duration(1000)
       .attr('r', function (d) { return d.radius; });
+
 
     legend = svg.selectAll(".legend")
       .data(fillColor.domain())
@@ -251,21 +214,9 @@ function bubbleChart() {
       .attr("class", "legend")
       .attr("transform", function (d, i) { return "translate(0," + i * 20 + ")"; });
     changeLegend(true);
-      // legend.append("rect")
-      //           .attr("x", diameter - 18)
-      //           .attr("width", 18)
-      //           .attr("height", 18)
-      //           .style("fill", fillColor);
-
-      // legend.append("text")
-      //           .attr("x", diameter - 24)
-      //           .attr("y", 9)
-      //           .attr("dy", ".35em")
-      //           .style("text-anchor", "end")
-      //           .text(function (d) {  var lang = $("#lang_sw").is(":checked")?"cn":"en"; return translate(industries[d].toLowerCase(), lang); });
-
 
     // Set initial layout to single group.
+    // splitBubbles();
     groupBubbles();
   };
 
@@ -277,7 +228,7 @@ function bubbleChart() {
    */
   function groupBubbles() {
     hideYears();
-
+    // svg.attr("height", 900); 
     force.on('tick', function (e) {
       bubbles.each(moveToCenter(e.alpha))
         .attr('cx', function (d) { return d.x; })
@@ -315,10 +266,10 @@ function bubbleChart() {
    * yearCenter of their data's year.
    */
   function splitBubbles() {
-    // showYears();
-
+    showYears();
+    svg.attr("height", 1100);
     force.on('tick', function (e) {
-      bubbles.each(moveToYears(e.alpha))
+      bubbles.each(moveToIndustries(e.alpha))
         .attr('cx', function (d) { return d.x; })
         .attr('cy', function (d) { return d.y; });
     });
@@ -340,11 +291,12 @@ function bubbleChart() {
    * its destination, and so allows other forces like the
    * node's charge force to also impact final location.
    */
-  function moveToYears(alpha) {
+  function moveToIndustries(alpha) {
     return function (d) {
       var target = coordinates[d.group];
-      d.x = d.x + (target.x - d.x) * damper * alpha * 1.1;
-      d.y = d.y + (target.y - d.y) * damper * alpha * 1.1;
+      d.x = d.x + (target.x - d.x) * damper * alpha ;
+      d.y = d.y + (target.y - d.y) * damper * alpha ;
+      // console.log(d);      
     };
   }
 
@@ -352,7 +304,7 @@ function bubbleChart() {
    * Hides Year title displays.
    */
   function hideYears() {
-    svg.selectAll('.year').remove();
+    svg.selectAll('.industries').remove();
   }
 
   /*
@@ -361,16 +313,16 @@ function bubbleChart() {
   function showYears() {
     // Another way to do this would be to create
     // the year texts once and then just hide them.
-    var yearsData = d3.keys(yearsTitleX);
-    var years = svg.selectAll('.year')
-      .data(yearsData);
+    var groupData = d3.keys(industries);
+    labels = svg.selectAll('.industries')
+      .data(groupData);
 
-    years.enter().append('text')
-      .attr('class', 'year')
-      .attr('x', function (d) { return yearsTitleX[d]; })
-      .attr('y', 40)
+    labels.enter().append('text')
+      .attr('class', 'industries')
+      .attr('x', function (d) { console.log("x"+d + " = " + coordinates[d].x); return lbl_coordinates[d].x; })
+      .attr('y', function (d) {  console.log("y"+d + " = " + coordinates[d].y); return lbl_coordinates[d].y; })
       .attr('text-anchor', 'middle')
-      .text(function (d) { return d; });
+      .text(function (d) {  var lang = $("#lang_sw").is(":checked")?"cn":"en"; return translate(industries[d].toLowerCase(),lang); });
   }
 
 
