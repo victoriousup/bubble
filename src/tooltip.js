@@ -12,7 +12,6 @@ function floatingTooltip(tooltipId, width) {
     .attr('class', 'tooltip')
     .attr('id', tooltipId)
     .style('pointer-events', 'none');
-
   // Set a width if it is provided.
   if (width) {
     tt.style('width', width);

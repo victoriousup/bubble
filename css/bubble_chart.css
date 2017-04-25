@@ -112,3 +112,12 @@ a, a:visited, a:active {
 .industries{
   font-weight: bold;
 }
+.tooltip .value a{
+  pointer-events: all;
+}
+.close_btn{
+  float:right;
+  text-align: center;
+  padding:1px 1px;
+  pointer-events:all;
+}

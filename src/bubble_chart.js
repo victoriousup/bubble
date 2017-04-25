@@ -53,9 +53,15 @@ function bubbleChart() {
     .gravity(-0.01)
     .friction(0.9);
 
-
+  
   // Nice looking colors - no reason to buck the trend
   var fillColor = d3.scale.category20c();
+  // console.log(fillColor);
+  // function colores_google(n) {
+  //   var colores_g = ["#3366cc", "#dc3912", "#ff9900", "#109618", "#990099", "#0099c6", "#dd4477", "#66aa00", "#b82e2e", "#316395", "#994499", "#22aa99", "#aaaa11", "#6633cc", "#e67300", "#8b0707", "#651067", "#329262", "#5574a6", "#3b3eac"];
+  //   var colores_g = ["#3366cc", "#dc3912", "#ff9900", "#109618", "#990099", "#0099c6", "#dd4477", "#66aa00", "#b82e2e", "#316395", "#994499", "#22aa99", "#aaaa11", "#6633cc", "#e67300", "#8b0707", "#651067", "#329262", "#5574a6", "#3b3eac"];
+  //   return colores_g[n % colores_g.length];
+  // }
   // var fillColor = d3.scale.ordinal()
   //   .domain(['low', 'medium', 'high'])
   //   .range(['#d84b2a', '#beccae', '#7aa25c']);
@@ -63,7 +69,7 @@ function bubbleChart() {
   // Sizes bubbles based on their area instead of raw radius
   var radiusScale = d3.scale.pow()
     .exponent(0.5)
-    .range([2, 20]);
+    .range([5, 60]);
 
   /*
    * This data manipulation function takes the raw data from
@@ -74,14 +80,14 @@ function bubbleChart() {
    * rawData is expected to be an array of data objects, read in from
    * one of d3's loading functions like d3.csv.
    *
-   * This function returns the new node array, with a node in that
+   * This function retrt142dsfdsaf8677jjrtyvdwhbnadfkcurns the new node array, with a node in that
    * array for each element in the rawData input.
    */
   var industries = [];
   var legend = legend || {};
   var labels = labels || {};
 
-
+  // Hide Language Switching when click Language button.
   $("#lang_sw").on('change',function(){
     lang_flag = $(this).is(":checked")?"cn":"en";
     $("#all").html(translate("all",lang_flag))
@@ -92,6 +98,22 @@ function bubbleChart() {
     });
   });
 
+  // Hide Tooltip when clicking close button.
+  $('body').on('click','.tooltip .close_btn', function(e){
+      // Reset node size
+      svg.selectAll('.bubble')
+          .classed('active', false)
+          .transition()
+          .ease(d3.easeElastic)
+          .delay(0)
+          .duration(1000)
+          .attr('r', function (d) {
+            return d.radius;
+          })
+          .attr('stroke', function(d){return d3.rgb(fillColor(d.group)).darker();});
+      tooltip.hideTooltip();
+  });
+  
   function changeLegend(flg)
   {
     if (flg){
@@ -136,14 +158,22 @@ function bubbleChart() {
         rawData[el].group = industries.indexOf(rawData[el].Industries);
       }
     }
- 
+    
+    rawData = rawData.filter(item => parseInteger(item["Net income (US$M)"])>0);
+
     var myNodes = rawData.map(function (d) {
+      var netincome = parseInteger(d["Net income (US$M)"]);
+      var revenue = parseInteger(d["Revenue (US$M)"]);
+      var year = parseInt(d["Acqusition Year"]);
       return {
         id: d.id,
-        radius: radiusScale(parseInt(d.Revenue*1)),
-        value: parseInt(d.Revenue),
-        name: d.Target,
+        radius: radiusScale(netincome),
+        value: netincome,
+        revenue: revenue,
+        year: year,
+        name: d["Target company"],
         org: d.Industries,
+        url: d.Website,
         group: d.group,
         x: Math.random() * width,
         y: Math.random() * height
@@ -151,6 +181,7 @@ function bubbleChart() {
     });
     // sort them to prevent occlusion of smaller nodes.
     myNodes.sort(function (a, b) { return b.value - a.value; });
+    
 
     return myNodes;
   }
@@ -172,7 +203,7 @@ function bubbleChart() {
     // Use the max total_amount in the data as the max in the scale's domain
     // note we have to ensure the total_amount is a number by converting it
     // with `+`.
-    var maxAmount = d3.max(rawData, function (d) { return parseInt(d.Revenue); });
+    var maxAmount = d3.max(rawData, function (d) { return parseInt(d["Net income (US$M)"]); });
     radiusScale.domain([0, maxAmount]);
 
     nodes = createNodes(rawData);
@@ -197,9 +228,68 @@ function bubbleChart() {
       .attr('r', 0)
       .attr('fill', function (d) { return fillColor(d.group); })
       .attr('stroke', function (d) { return d3.rgb(fillColor(d.group)).darker(); })
-      .attr('stroke-width', 2)
-      .on('mouseover', showDetail)
-      .on('mouseout', hideDetail);
+      .attr('stroke-width', function(d){
+        if (d.revenue < Math.pow(10, 8))
+        {
+          return 1;
+        }else if ((d.revenue >= Math.pow(10,8)) && (d.revenue <= 5 * Math.pow(10,8)))
+        {
+          return 2;
+        }else if (d.revenue > 5 * Math.pow(10,8))
+        {
+          return 3;
+        }
+      })
+      .attr('opacity', function(d){
+        var yr = parseInt(d.year);
+        if (yr<2014)
+        {
+          return 0.5;
+        }
+        else if((yr >= 2014) && (yr <= 2016 ) )
+        {
+          return 0.9;
+        }
+        else if(yr > 2016)
+        {
+          return 1;
+        }
+      })
+      .on('click', function(d){
+        var node = this, d3Node = d3.select(node);
+        if (d3Node.classed('active')) {
+            // Reset node size
+						svg.selectAll('.bubble')
+                .classed('active', false)
+                .transition()
+								.ease(d3.easeElastic)
+								.delay(0)
+								.duration(1000)
+								.attr('r', function (d) {
+									return d.radius;
+								})
+            hideDetail(d,this);
+				}
+				// If node is selected for first time
+				else {
+						// Change selected node to 'active'
+						// Enlarge selected node, shrink all others
+						svg.selectAll('.bubble')
+              .classed('active', false)
+              .transition()
+							.ease(d3.easeElastic)
+							.delay(0)
+							.duration(800)
+							.attr('r', function (d) {
+								return (this === node) ? d.radius * 1.1 : d.radius;
+							})
+            d3Node.classed('active', true)
+            showDetail(d, this);
+    		}
+
+      });
+      // .on('mouseover', showDetail) 
+      // .on('mouseout', hideDetail);
 
     // Fancy transition to make bubbles appear, ending with the
     // correct radius
@@ -319,8 +409,8 @@ function bubbleChart() {
 
     labels.enter().append('text')
       .attr('class', 'industries')
-      .attr('x', function (d) { console.log("x"+d + " = " + coordinates[d].x); return lbl_coordinates[d].x; })
-      .attr('y', function (d) {  console.log("y"+d + " = " + coordinates[d].y); return lbl_coordinates[d].y; })
+      .attr('x', function (d) { return lbl_coordinates[d].x; })
+      .attr('y', function (d) { return lbl_coordinates[d].y; })
       .attr('text-anchor', 'middle')
       .text(function (d) {  var lang = $("#lang_sw").is(":checked")?"cn":"en"; return translate(industries[d].toLowerCase(),lang); });
   }
@@ -330,28 +420,44 @@ function bubbleChart() {
    * Function called on mouseover to display the
    * details of a bubble in the tooltip.
    */
-  function showDetail(d) {
+  function showDetail(d, obj) {
     // change outline to indicate hover state.
-    d3.select(this).attr('stroke', 'black');
+    d3.selectAll('.bubble')
+      .attr('stroke', function(d){
+        if (this == obj)
+          return 'black';
+        else
+          return d3.rgb(fillColor(d.group)).darker();
+      });
     var lang = $("#lang_sw").is(":checked")?"cn":"en";
-    var content = '<span class="name">'+translate('Target', lang)+': </span><span class="value">' +
+    var content = '<button class="close_btn">X</button>'+
+                  '<span class="name">'+translate('Target Company', lang)+': </span><span class="value">' +
                   d.name +
                   '</span><br/>' +
                   '<span class="name">'+translate('Industries', lang)+': </span><span class="value">' +
                   translate(d.org.toLowerCase(), lang) +
                   '</span><br/>' +
-                  '<span class="name">'+translate('Revenue', lang)+': </span><span class="value">' +
+                  '<span class="name">'+translate('Year', lang)+': </span><span class="value">' +
+                  d.year +
+                  '</span><br/>' +
+                  '<span class="name">'+translate('Revenue US$M', lang)+': </span><span class="value">' +
+                  d.revenue +
+                  '</span><br/>' +
+                  '<span class="name">'+translate('Net Income US$M', lang)+': </span><span class="value">' +
                   addCommas(d.value) +
-                  '</span>';
+                  '</span><br/>' + 
+                  '<span class="name">'+translate('Web Site', lang)+': </span><span class="value"><a href="'+
+                  url2link(d.url)+'" target="_blank">' + url2link(d.url) +
+                  '</a></span>';
     tooltip.showTooltip(content, d3.event);
   }
 
   /*
    * Hides tooltip
    */
-  function hideDetail(d) {
+  function hideDetail(d, obj) {
     // reset outline
-    d3.select(this)
+    d3.select(obj)
       .attr('stroke', d3.rgb(fillColor(d.group)).darker());
 
     tooltip.hideTooltip();
@@ -371,7 +477,6 @@ function bubbleChart() {
       groupBubbles();
     }
   };
-
 
   // return the chart function from closure.
   return chart;
@@ -420,79 +525,26 @@ function setupButtons() {
     });
 }
 
+
 /*
  * Helper function to convert a number into a string
  * and add commas to it to improve presentation.
  */
 function addCommas(nStr) {
-  // nStr += '';
-  // var x = nStr.split('.');
-  // var x1 = x[0];
-  // var x2 = x.length > 1 ? '.' + x[1] : '';
-  // var rgx = /(\d+)(\d{3})/;
-  // while (rgx.test(x1)) {
-  //   x1 = x1.replace(rgx, '$1' + ',' + '$2');
-  // }
-
-  // return x1 + x2;
   return nStr + " $/Mon"
 }
 
 // Load the data.
-// d3.csv('data/gates_money.csv', display);
-d3.csv('data/revenue_data.csv', display);
+d3.tsv('data/data.tsv', display);
 
 // setup the buttons.
 setupButtons();
 
-/* Translate Function */
-
-function translate(str, lang)
+/* parse integer function */
+function parseInteger(nStr)
 {
-  var localstr  = []
-
-  localstr["cn"] = {
-    "target"    : "公司",
-    "industries": "产业",
-    "revenue"   : "营收",
-    "all"       : "所有的公司",
-    "industry"  : "公司按产业",
-    "finance & business services" : "金融 & 商务服务",
-    "healthcare & biotech"  : "医疗保健 & 生物技术",
-    "consumer products & retail & e-commerce" : "消费品 & 零售 & 电子商务",
-    "agriculture & food"  : "农业 & 食品",
-    "industrials" : "工业",
-    "energy & infrastructure & construction"  : "能源 & 基础设施 & 建设",
-    "real estate & hospitality" : "房地产 & 酒店",
-    "aerospace & defense" : " 航空 & 国防",
-    "materials & chemicals"  : "材料 & 化学",
-    "entertainment"  : "招待",
-    "tmt" : "数字新媒体",
-    "transportation"  : "运输",
-    "education" : "教育",
-    "automotive"  : "自动化"
-  };
-  localstr["en"] = {
-    "target"    : "Target",
-    "industries": "Industry",
-    "revenue"   : "Revenue",
-    "all"       : "All Companies",
-    "industry"  : "Targets By Industries",
-    "finance & business services" : "Finance & Business Services",
-    "healthcare & biotech"  : "Healthcare & BioTech",
-    "consumer products & retail & e-commerce" : "Consumer Products & Retail & E-Commerce",
-    "agriculture & food"  : "Agriculture & Food",
-    "industrials" : "Industrials",
-    "energy & infrastructure & construction"  : "Energy & Infrastructure & Construction",
-    "real estate & hospitality" : "Real Estate & Hospitality",
-    "aerospace & defense" : "Aerospace & Defense",
-    "materials & chemicals"  : "Materials & Chemicals",
-    "entertainment"  : "Entertainment",
-    "tmt" : "TMT",
-    "transportation"  : "Transportation",
-    "education" : "Education",
-    "automotive"  : "Automotive"
-  };
-  return localstr[lang.toLowerCase()][str.toLowerCase()];
+  var nRet = 0;
+  nRet = nStr.replace(/\,/g , ''); // 1125, but a string, so convert it to number
+  nRet = parseInt(nRet , 10); 
+  return nRet;
 }
-
