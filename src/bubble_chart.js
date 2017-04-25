@@ -171,6 +171,7 @@ function bubbleChart() {
         value: netincome,
         revenue: revenue,
         year: year,
+        description: d["Company Description"],
         name: d["Target company"],
         org: d.Industries,
         url: d.Website,
@@ -306,18 +307,15 @@ function bubbleChart() {
     changeLegend(true);
 
     // Set initial layout to single group.
-    // splitBubbles();
-    groupBubbles();
+    // splitByNetIncome();
+    groupAll();
   };
 
   /*
    * Sets visualization in "single group mode".
-   * The year labels are hidden and the force layout
-   * tick function is set to move all nodes to the
-   * center of the visualization.
    */
-  function groupBubbles() {
-    hideYears();
+  function groupAll() {
+    hideIndividualLabels();
     // svg.attr("height", 900); 
     force.on('tick', function (e) {
       bubbles.each(moveToCenter(e.alpha))
@@ -334,13 +332,6 @@ function bubbleChart() {
    * single node and adjusts the position values
    * of that node to move it toward the center of
    * the visualization.
-   *
-   * Positioning is adjusted by the force layout's
-   * alpha parameter which gets smaller and smaller as
-   * the force layout runs. This makes the impact of
-   * this moving get reduced as each node gets closer to
-   * its destination, and so allows other forces like the
-   * node's charge force to also impact final location.
    */
   function moveToCenter(alpha) {
     return function (d) {
@@ -350,13 +341,42 @@ function bubbleChart() {
   }
 
   /*
-   * Sets visualization in "split by year mode".
-   * The year labels are shown and the force layout
-   * tick function is set to move nodes to the
-   * yearCenter of their data's year.
+   * Sets visualization in "split by Net Income mode".
    */
-  function splitBubbles() {
-    showYears();
+  function splitByNetIncome() {
+    showIndividualLabels(1);
+    svg.attr("height", 1100);
+    force.on('tick', function (e) {
+      bubbles.each(moveToNetIncome(e.alpha))
+        .attr('cx', function (d) { return d.x; })
+        .attr('cy', function (d) { return d.y; });
+    });
+
+    force.start();
+  }
+
+  /*
+   * Helper function for "split by Net Income mode".
+   * Returns a function that takes the data for a
+   * single node and adjusts the position values
+   * of that node to move it the year center for that
+   * node.
+   */
+  function moveToNetIncome(alpha) {
+    return function (d) {
+      var target = coordinates[d.group];
+      d.x = d.x + (target.x - d.x) * damper * alpha ;
+      d.y = d.y + (target.y - d.y) * damper * alpha ;
+      // console.log(d);      
+    };
+  }
+
+  /*
+   * Sets visualization in "split by Industry mode".
+   */
+
+  function splitByIndustry() {
+    showIndividualLabels(2);
     svg.attr("height", 1100);
     force.on('tick', function (e) {
       bubbles.each(moveToIndustries(e.alpha))
@@ -368,18 +388,11 @@ function bubbleChart() {
   }
 
   /*
-   * Helper function for "split by year mode".
+   * Helper function for "split by Industry mode".
    * Returns a function that takes the data for a
    * single node and adjusts the position values
    * of that node to move it the year center for that
    * node.
-   *
-   * Positioning is adjusted by the force layout's
-   * alpha parameter which gets smaller and smaller as
-   * the force layout runs. This makes the impact of
-   * this moving get reduced as each node gets closer to
-   * its destination, and so allows other forces like the
-   * node's charge force to also impact final location.
    */
   function moveToIndustries(alpha) {
     return function (d) {
@@ -391,16 +404,49 @@ function bubbleChart() {
   }
 
   /*
+   * Sets visualization in "split by Serra Scores mode".
+   */
+  function splitBySerraScores() {
+    showIndividualLabels(3);
+    svg.attr("height", 1100);
+    force.on('tick', function (e) {
+      bubbles.each(moveToIndustries(e.alpha))
+        .attr('cx', function (d) { return d.x; })
+        .attr('cy', function (d) { return d.y; });
+    });
+
+    force.start();
+  }
+
+  /*
+   * Helper function for "split by Industry mode".
+   * Returns a function that takes the data for a
+   * single node and adjusts the position values
+   * of that node to move it the year center for that
+   * node.
+   */
+  function moveToSerraScores(alpha) {
+    return function (d) {
+      var target = coordinates[d.group];
+      d.x = d.x + (target.x - d.x) * damper * alpha ;
+      d.y = d.y + (target.y - d.y) * damper * alpha ;
+      // console.log(d);      
+    };
+  }
+
+
+
+  /*
    * Hides Year title displays.
    */
-  function hideYears() {
+  function hideIndividualLabels() {
     svg.selectAll('.industries').remove();
   }
 
   /*
    * Shows Year title displays.
    */
-  function showYears() {
+  function showIndividualLabels(nInd) {
     // Another way to do this would be to create
     // the year texts once and then just hide them.
     var groupData = d3.keys(industries);
@@ -433,6 +479,9 @@ function bubbleChart() {
     var content = '<button class="close_btn">X</button>'+
                   '<span class="name">'+translate('Target Company', lang)+': </span><span class="value">' +
                   d.name +
+                  '</span><br/>' +
+                  '<span class="name">'+translate('Description', lang)+': </span><span class="value">' +
+                  d.description +
                   '</span><br/>' +
                   '<span class="name">'+translate('Industries', lang)+': </span><span class="value">' +
                   translate(d.org.toLowerCase(), lang) +
@@ -471,10 +520,18 @@ function bubbleChart() {
    * displayName is expected to be a string and either 'year' or 'all'.
    */
   chart.toggleDisplay = function (displayName) {
-    if (displayName === 'industry') {
-      splitBubbles();
-    } else {
-      groupBubbles();
+    if (displayName === 'all')
+    {
+      groupAll();
+    }
+    else if (displayName === 'industry') {
+      splitByIndustry();
+    } 
+    else if (displayName === 'netincome') {
+      splitByNetIncome();
+    }
+    else if (displayName === 'scores') {
+      splitBySerraScores();
     }
   };
 
