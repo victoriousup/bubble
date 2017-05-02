@@ -121,3 +121,38 @@ a, a:visited, a:active {
   padding:1px 1px;
   pointer-events:all;
 }
+.netincomes{
+  font-size: 16px;
+  font-weight: bold;
+  text-decoration: underline;
+}
+.scores{
+  font-size: 16px;
+  font-weight: bold;
+  text-decoration: underline;
+  
+}
+
+  .legend {
+    font-size: 12px;
+    font-family: sans-serif;
+  }
+
+  .legend path,
+  .legend line {
+    fill: none;
+    stroke: #000;
+    shape-rendering: crispEdges;
+    opacity: 1;
+  }
+
+  .circle-legend line {
+    stroke: #000;
+    shape-rendering: crispEdges;
+  }
+
+  .circle-legend circle {
+    stroke: rgb(49, 130, 189);
+    stroke-dasharray: 8, 2;
+    fill: snow;
+  }

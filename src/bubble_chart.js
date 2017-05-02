@@ -85,6 +85,8 @@ function bubbleChart() {
    */
   var industries = [];
   var legend = legend || {};
+  var legend_radius = legend_radius || {};
+  var legend_stroke = legend_stroke || {};
   var labels = labels || {};
 
   // Hide Language Switching when click Language button.
@@ -92,6 +94,8 @@ function bubbleChart() {
     lang_flag = $(this).is(":checked")?"cn":"en";
     $("#all").html(translate("all",lang_flag))
     $("#industry").html(translate("industry",lang_flag));
+    $("#netincome").html(translate("netincome",lang_flag));
+    $("#scores").html(translate("scores",lang_flag));
     changeLegend(false);
     labels.text(function(d){
       return translate(industries[d], lang_flag);
@@ -129,6 +133,44 @@ function bubbleChart() {
                 .attr("dy", ".35em")
                 .style("text-anchor", "end")
                 .text(function (d) {  var lang = $("#lang_sw").is(":checked")?"cn":"en"; return translate(industries[d].toLowerCase(), lang); } );
+   
+     // var legend_scale = d3.scale.sqrt()
+     //            .domain([0, 1000000])
+     //            .range([0, 100])
+     //  legend_scale.domain([0,1000000])
+
+      var formatSI = d3.format('s')
+      var formatCurrencySI = function(d) { 
+        if (d == 3) return 'Net Income < 0 or not disclosed'
+        else return 'Net Income = US$' + d + 'M';
+      }
+
+      var circleKey = circleLegend()
+          .scale(radiusScale)
+          .tickValues([3, 100, 500, 999])
+          .tickFormat(formatCurrencySI)
+          .tickPadding(10)
+          .orient("right") //default
+
+      svg.append('g')
+        .attr('transform', 'translate(100, 130)')
+        .call(circleKey)
+
+      legend_stroke
+                      .append("rect")
+                      .attr("x", 500)
+                      .attr("y", function(d){return 20 + d.id*15})
+                      .attr("width" , 30)
+                      .attr("height" , function(d){ return d.size;})
+                      .style("fill", "rgb(49, 130, 189)")
+      legend_stroke.append("text")
+                      .attr("x", 550)
+                      .attr("y", function(d){return 20 + d.id*15 + d.id })
+                      .attr("dy", ".35em")
+                      .style("text-anchor", "start")
+                      .text(function(d){return d.value;});
+
+
     } else {
       legend.select("text")
                 .text(function (d) {  var lang = $("#lang_sw").is(":checked")?"cn":"en"; return translate(industries[d].toLowerCase(), lang); } );
@@ -141,37 +183,43 @@ function bubbleChart() {
     // working with data.
 
     var group_count = 0;
+    var co_ord = [];
+
+    rawData = rawData.filter(item => parseInteger(item["Net income (US$M)"])!=0);
+    rawData = rawData.filter(item => item["Industries"].replace(/\s*$/,'')!='');
+
     for (var el in rawData)
     {
       rawData[el].id = el;
+      // debugger;
       rawData[el].Industries = rawData[el].Industries.replace(/\s*$/,'');
       rawData[el].Industries =  rawData[el].Industries.toUpperCase();
       if (industries.indexOf(rawData[el].Industries) == -1)
       {
         industries.push(rawData[el].Industries);
         rawData[el].group = group_count;
+        co_ord[rawData[el].group] = 1;
         group_count++;
       }
       else
       {
         rawData[el].id = el;
         rawData[el].group = industries.indexOf(rawData[el].Industries);
+        co_ord[rawData[el].group]++;
       }
     }
-    
-    rawData = rawData.filter(item => parseInteger(item["Net income (US$M)"])>0);
 
     var myNodes = rawData.map(function (d) {
       var netincome = parseInteger(d["Net income (US$M)"]);
       var revenue = parseInteger(d["Revenue (US$M)"]);
-      var year = parseInt(d["Acqusition Year"]);
+      var year = parseInt(d["Funded year"]);
       return {
         id: d.id,
-        radius: radiusScale(netincome),
+        radius: (netincome<0)?3:radiusScale(netincome),
         value: netincome,
         revenue: revenue,
         year: year,
-        description: d["Company Description"],
+        description: d["Description"],
         name: d["Target company"],
         org: d.Industries,
         url: d.Website,
@@ -230,30 +278,30 @@ function bubbleChart() {
       .attr('fill', function (d) { return fillColor(d.group); })
       .attr('stroke', function (d) { return d3.rgb(fillColor(d.group)).darker(); })
       .attr('stroke-width', function(d){
-        if (d.revenue < Math.pow(10, 8))
+        if (d.revenue < 100)
         {
           return 1;
-        }else if ((d.revenue >= Math.pow(10,8)) && (d.revenue <= 5 * Math.pow(10,8)))
-        {
-          return 2;
-        }else if (d.revenue > 5 * Math.pow(10,8))
+        }else if ((d.revenue >= 100) && (d.revenue <= 500))
         {
           return 3;
+        }else if (d.revenue > 500)
+        {
+          return 6;
         }
       })
       .attr('opacity', function(d){
         var yr = parseInt(d.year);
         if (yr<2014)
         {
-          return 0.5;
-        }
-        else if((yr >= 2014) && (yr <= 2016 ) )
-        {
-          return 0.9;
-        }
-        else if(yr > 2016)
-        {
           return 1;
+        }
+        else if((yr >= 2014) && (yr < 2016 ) )
+        {
+          return 0.7;
+        }
+        else if(yr >= 2016)
+        {
+          return 0.4;
         }
       })
       .on('click', function(d){
@@ -304,6 +352,12 @@ function bubbleChart() {
       .enter().append("g")
       .attr("class", "legend")
       .attr("transform", function (d, i) { return "translate(0," + i * 20 + ")"; });
+
+    legend_stroke = svg.selectAll(".stroke_legend")
+      .data(stroke_lg)
+      .enter().append("g")
+      .attr("class", "stroke_legend")
+      .attr("transform", function (d, i) { return "translate(0," + i * 20 + ")"; });
     changeLegend(true);
 
     // Set initial layout to single group.
@@ -344,7 +398,7 @@ function bubbleChart() {
    * Sets visualization in "split by Net Income mode".
    */
   function splitByNetIncome() {
-    showIndividualLabels(1);
+    showIndividualLabels(2);
     svg.attr("height", 1100);
     force.on('tick', function (e) {
       bubbles.each(moveToNetIncome(e.alpha))
@@ -364,7 +418,14 @@ function bubbleChart() {
    */
   function moveToNetIncome(alpha) {
     return function (d) {
-      var target = coordinates[d.group];
+      var gn = 0;
+      // if (d.value <0) gn = 0; else
+      if (d.value >0 &&  d.value<=20) gn = 1;
+      else if (d.value > 20 && d.value <= 50) gn = 2;
+      else if (d.value > 50 && d.value <= 100) gn = 3;
+      else if (d.value > 100) gn = 4;
+
+      var target = netIncomeCenterPos[gn];
       d.x = d.x + (target.x - d.x) * damper * alpha ;
       d.y = d.y + (target.y - d.y) * damper * alpha ;
       // console.log(d);      
@@ -376,7 +437,7 @@ function bubbleChart() {
    */
 
   function splitByIndustry() {
-    showIndividualLabels(2);
+    showIndividualLabels(1);
     svg.attr("height", 1100);
     force.on('tick', function (e) {
       bubbles.each(moveToIndustries(e.alpha))
@@ -410,7 +471,7 @@ function bubbleChart() {
     showIndividualLabels(3);
     svg.attr("height", 1100);
     force.on('tick', function (e) {
-      bubbles.each(moveToIndustries(e.alpha))
+      bubbles.each(moveToSerraScores(e.alpha))
         .attr('cx', function (d) { return d.x; })
         .attr('cy', function (d) { return d.y; });
     });
@@ -427,7 +488,11 @@ function bubbleChart() {
    */
   function moveToSerraScores(alpha) {
     return function (d) {
-      var target = coordinates[d.group];
+      var gn = 0
+      if (d.year < 2014) gn = 0;
+      else if (d.year >= 2014 && d.year < 2016) gn = 1;
+      else if (d.year >= 2016) gn = 2;
+      var target = scoresCenterPos[gn];
       d.x = d.x + (target.x - d.x) * damper * alpha ;
       d.y = d.y + (target.y - d.y) * damper * alpha ;
       // console.log(d);      
@@ -441,6 +506,8 @@ function bubbleChart() {
    */
   function hideIndividualLabels() {
     svg.selectAll('.industries').remove();
+    svg.selectAll('.netincomes').remove();
+    svg.selectAll('.scores').remove();
   }
 
   /*
@@ -449,16 +516,51 @@ function bubbleChart() {
   function showIndividualLabels(nInd) {
     // Another way to do this would be to create
     // the year texts once and then just hide them.
-    var groupData = d3.keys(industries);
-    labels = svg.selectAll('.industries')
-      .data(groupData);
+    if (nInd == 1)
+    {
+      svg.selectAll('.netincomes').remove();      
+      svg.selectAll('.scores').remove();      
+      var groupData = d3.keys(industries);
+      labels = svg.selectAll('.industries')
+        .data(groupData);
 
-    labels.enter().append('text')
-      .attr('class', 'industries')
-      .attr('x', function (d) { return lbl_coordinates[d].x; })
-      .attr('y', function (d) { return lbl_coordinates[d].y; })
-      .attr('text-anchor', 'middle')
-      .text(function (d) {  var lang = $("#lang_sw").is(":checked")?"cn":"en"; return translate(industries[d].toLowerCase(),lang); });
+      labels.enter().append('text')
+        .attr('class', 'industries')
+        .attr('x', function (d) { return lbl_coordinates[d].x; })
+        .attr('y', function (d) { return lbl_coordinates[d].y; })
+        .attr('text-anchor', 'middle')
+        .text(function (d) {  var lang = $("#lang_sw").is(":checked")?"cn":"en"; return translate(industries[d].toLowerCase(),lang); });
+    }
+    else if (nInd == 2)
+    {
+      svg.selectAll('.industries').remove();
+      svg.selectAll('.scores').remove();
+      // svg.selectAll('.netincomes').remove();
+      labels = svg.selectAll('.netincomes')
+        .data(lbl_netIncome);
+      labels.enter().append('text')
+        .attr('class', 'netincomes')
+        .attr('x', function(d){ return d.x;})
+        .attr('y', function(d){ return d.y;})
+        .attr('text-anchor', 'middle')
+        .text(function(d){ var lang = $('#lang_sw').is(":checked")?"cn":"en"; return translate(d.value, lang);});
+    }
+    else if (nInd == 3)
+    {
+      svg.selectAll('.industries').remove();
+      svg.selectAll('.netincomes').remove();
+      labels = svg.selectAll('.scores')
+        .data(lbl_scores);
+      labels.enter().append('svg:image')
+        .attr('class', 'scores')
+        .attr('x', function(d){ return d.x;})
+        .attr('y', function(d){ return d.y;})
+        .attr('text-anchor', 'middle')
+        .attr('xlink:href',function(d){ return 'img/star-'+d.id+'.png'})
+        .attr('width',function(d){ return d.id*20})
+        .attr('height',20)
+        .attr('title',function(d){ var lang = $('#lang_sw').is(":checked")?"cn":"en"; return translate(d.value.toLowerCase(), lang);});
+    }
   }
 
 
@@ -490,10 +592,10 @@ function bubbleChart() {
                   d.year +
                   '</span><br/>' +
                   '<span class="name">'+translate('Revenue US$M', lang)+': </span><span class="value">' +
-                  d.revenue +
+                  d.revenue + ' US$M' +
                   '</span><br/>' +
                   '<span class="name">'+translate('Net Income US$M', lang)+': </span><span class="value">' +
-                  addCommas(d.value) +
+                  d.value + '   US$M' +
                   '</span><br/>' + 
                   '<span class="name">'+translate('Web Site', lang)+': </span><span class="value"><a href="'+
                   url2link(d.url)+'" target="_blank">' + url2link(d.url) +
@@ -583,16 +685,8 @@ function setupButtons() {
 }
 
 
-/*
- * Helper function to convert a number into a string
- * and add commas to it to improve presentation.
- */
-function addCommas(nStr) {
-  return nStr + " $/Mon"
-}
-
 // Load the data.
-d3.tsv('data/data.tsv', display);
+d3.csv('data/data_new.csv', display);
 
 // setup the buttons.
 setupButtons();
@@ -601,6 +695,7 @@ setupButtons();
 function parseInteger(nStr)
 {
   var nRet = 0;
+  if (nStr == undefined || nStr == '') nStr = '0';
   nRet = nStr.replace(/\,/g , ''); // 1125, but a string, so convert it to number
   nRet = parseInt(nRet , 10); 
   return nRet;
